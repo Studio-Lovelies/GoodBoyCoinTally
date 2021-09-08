@@ -1,0 +1,30 @@
+{
+  "name": "goodboycointally",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Studio-Lovelies/GoodBoyCoinTally.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Studio-Lovelies/GoodBoyCoinTally/issues"
+  },
+  "homepage": "https://github.com/Studio-Lovelies/GoodBoyCoinTally#readme",
+  "keywords": [],
+  "devDependencies": {
+    "@types/node": "^16.7.13"
+  },
+  "dependencies": {
+    "@discordjs/rest": "0.1.0-canary.0",
+    "discord.js": "^13.1.0",
+    "mysql": "^2.18.1",
+    "node": "16.6.1",
+    "nodemon": "^2.0.12"
+  }
+}
