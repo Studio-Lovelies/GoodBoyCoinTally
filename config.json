@@ -1,0 +1,6 @@
+{
+    "token": "TOKEN",
+    "dbUrl": "URL",
+    "dbUser": "USER",
+    "dbPass": "PASS"
+}
