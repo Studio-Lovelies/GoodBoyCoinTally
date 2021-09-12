@@ -5,7 +5,6 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 var mysql = require('mysql');
 
-
 dbOptions = {};
 
 if (process.env.CLEARDB_DATABASE_URL != undefined) {
@@ -64,13 +63,24 @@ const commands = [{
                 required: true
             }
         ]
-    }, {
+    },
+    {
         name: 'tally',
         description: 'Grants Good Boy coins',
         options: [{
             name: "username",
             description: "The username of the user you want to get the tally from",
             type: 6
+        }]
+    },
+
+    {
+        name: "buy",
+        description: "Buy something from the shop with your Good Boy coins",
+        options: [{
+            name: "reward",
+            description: "The reward of your choice",
+            type: 3
         }]
     }
 ];
@@ -95,6 +105,24 @@ var client = new Discord.Client({ intents: [Discord.Intents.FLAGS.GUILDS] });
 
 client.on("ready", () => {
     console.info("Ready");
+});
+
+client.on('raw', packet => {
+    if (!['MESSAGE_REACTION_ADD', 'MESSAGE_REACTION_REMOVE'].includes(packet.t)) return;
+    const channel = client.channels.cache.get(packet.d.channel_id);
+    if (channel.messages.cache.has(packet.d.message_id)) return;
+    channel.messages.fetch(packet.d.message_id).then(message => {
+        const emoji = packet.d.emoji.id ? `${packet.d.emoji.name}:${packet.d.emoji.id}` : packet.d.emoji.name;
+        const reaction = message.reactions.cache.get(emoji);
+        if (reaction) reaction.users.cache.set(packet.d.user_id, client.users.cache.get(packet.d.user_id));
+        if (packet.t === 'MESSAGE_REACTION_ADD') {
+            client.emit('messageReactionAdd', reaction, client.users.cache.get(packet.d.user_id));
+            console.log(`a reaction is added to a message1`);
+        }
+        if (packet.t === 'MESSAGE_REACTION_REMOVE') {
+            client.emit('messageReactionRemove', reaction, client.users.cache.get(packet.d.user_id));
+        }
+    });
 });
 
 client.on('interactionCreate', async interaction => {
@@ -144,6 +172,63 @@ client.on('interactionCreate', async interaction => {
                 break;
         }
     }
+
+    switch (interaction.commandName.toLowerCase()) {
+        case "buy":
+            if (interaction.options.get("reward") != undefined) {
+                utils.selectFromDB(connection, function(success, resp) {
+                    if (success) {
+                        resp.sort(function(a, b) { return b.cost - a.cost; });
+                        utils.selectFromDB(connection, function(success2, resp2) {
+                            if (success2) {
+                                if (resp[parseInt(interaction.options.get("reward").value) - 1].reward === "Children of Epik Membership") {
+                                    if (interaction.member.roles.cache.some(role => role.id === "852675470319026177")) return interaction.reply("You already are a Children of Epik");
+                                }
+                                utils.updateRow(connection, "users", "coins", (parseInt(resp2[0].coins) - parseInt(resp[parseInt(interaction.options.get("reward").value) - 1].cost)), ["userID", interaction.user.id], function() {
+                                    interaction.reply("Purchased: " + resp[parseInt(interaction.options.get("reward").value) - 1].reward);
+                                    interaction.user.send("You have bought \"" + resp[parseInt(interaction.options.get("reward").value) - 1].reward + "\" for " + resp[parseInt(interaction.options.get("reward").value) - 1].cost + " Good Boy coins! " + goodBoyCoin + "\n\nRules:\n1. All orders will be fulfilled when possible. Our member's lives take priority. We will try to get the orders done as soon as possible.\n2. After redeeming an item, please wait for the relevant Studio Lovelies member to contact you. If nobody contacts you within a day, contact Epik.\n3. When redeeming the \"Short Story\" reward, the writers may not feel comfortable writing some or all of your request. If that occurs, and a compromise cannot be reached, contact Epik for a refund.\n4. After redeeming the \"Short Story\" reward, a random writer from the following list will be assigned to your order: Kythebumblebee (aka MILF of Viagra Falls), SoupBoi and KodaNootNoot. If you wish a specific writer to fulfill your order, please contact them.");
+                                    interaction.guild.channels.fetch("886682255920074793").then(channel => channel.send("<@&885711758759723068> " + interaction.user.tag + " has bought \"" + resp[parseInt(interaction.options.get("reward").value) - 1].reward + "\""));
+
+                                    if (resp[parseInt(interaction.options.get("reward").value) - 1].reward === "Children of Epik Membership") {
+                                        interaction.member.roles.add("852675470319026177");
+                                        interaction.channels.fetch("852675207290552321").then(channel => channel.send("<@" + interaction.user.id + ">\nhttps://tenor.com/view/welcome-to-the-family-son-resident-evil7-welcome-to-the-family-justnads-resident-evil-gif-20743783"));
+                                    }
+                                });
+                            } else {
+                                return interaction.reply("Something went wrong, please try again later " + resp);
+                            }
+                        }, "users", "userID", interaction.user.id);
+                    } else {
+                        return interaction.reply("Something went wrong, please try again later");
+                    }
+                }, "shop");
+            } else {
+                var embed = new Discord.MessageEmbed();
+                utils.selectFromDB(connection, function(success, resp) {
+                    if (success) {
+                        resp.sort(function(a, b) { return b.cost - a.cost; });
+                        embed.setTitle("Good Boy coin shop " + goodBoyCoin)
+                            .setThumbnail("https://i.imgur.com/FgDhpVA.png")
+                            .setColor('#00ADEF');
+                        for (i in resp) {
+                            embed.addField((parseInt(i) + 1) + ". " + resp[i].reward, resp[i].cost + " Coins");
+                        }
+                        embed.setDescription("Choose your reward using the number attributed to it!")
+                            .setFooter("Made by cunt#4811");
+                        interaction.reply({ embeds: [embed] });
+                    } else {
+                        return interaction.reply("Something went wrong, please try again later");
+                    }
+                }, "shop");
+            }
+            break;
+        default:
+            break;
+    }
+});
+
+client.on("messageReactionAdd", function(messageReaction, user) {
+    console.log(`a reaction is added to a message2`);
 });
 
 client.login(TOKEN);
